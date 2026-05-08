@@ -54,8 +54,8 @@ celerybeat.pid
 # Keep migration files — only ignore temp stamps
 *.pyc
 
-# ── Local file storage (dev uploads) ─────────────────────────────────────────
-storage/
+# ── Local file storage (dev uploads, root-level only) ────────────────────────
+/storage/
 
 # ── SBERT / ML model cache ───────────────────────────────────────────────────
 models_cache/
