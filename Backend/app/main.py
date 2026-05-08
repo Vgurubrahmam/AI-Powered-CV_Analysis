@@ -12,29 +12,17 @@ from __future__ import annotations
 
 import app.core.force_ipv4  # noqa: F401 — must be first to patch DNS before any connections
 
-import time
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 import structlog
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.api.router import api_router
 from app.config import settings
-from app.core.exceptions import (
-    AppException,
-    AuthException,
-    LLMException,
-    ParseException,
-    PipelineException,
-    ResourceNotFoundException,
-    StorageException,
-    ValidationException,
-    register_exception_handlers,
-)
+from app.core.exceptions import register_exception_handlers
 from app.core.logging import configure_logging
 from app.core.middleware import RequestContextMiddleware
 
@@ -136,8 +124,6 @@ async def get_redis():
 
 def create_app() -> FastAPI:
     """Application factory — build and return the configured FastAPI app."""
-
-
     app = FastAPI(
         title="ATS Platform API",
         description="Enterprise AI-Powered Resume Analysis & ATS Platform",
@@ -176,41 +162,6 @@ def create_app() -> FastAPI:
     @app.get("/health", include_in_schema=False, tags=["ops"])
     async def health_check() -> dict:
         return {"status": "ok", "env": settings.APP_ENV, "version": "1.0.0"}
-
-    # ── Temporary migration endpoint (remove after use) ───────────────────
-    @app.post("/ops/migrate", include_in_schema=False, tags=["ops"])
-    async def run_migration() -> dict:
-        """Add missing columns to resumes table via the running DB pool."""
-        import traceback
-        from sqlalchemy import text
-        from app.dependencies import get_db_engine
-
-        try:
-            engine = get_db_engine()
-            results = []
-
-            async with engine.begin() as conn:
-                # Check existing columns
-                row = await conn.execute(
-                    text("SELECT column_name FROM information_schema.columns WHERE table_name = 'resumes'")
-                )
-                existing = {r[0] for r in row.fetchall()}
-                results.append(f"existing_columns: {sorted(existing)}")
-
-                for col_name, col_sql in [
-                    ("raw_text", "ALTER TABLE resumes ADD COLUMN raw_text TEXT"),
-                    ("language", "ALTER TABLE resumes ADD COLUMN language VARCHAR(10) NOT NULL DEFAULT 'en'"),
-                    ("version", "ALTER TABLE resumes ADD COLUMN version INTEGER NOT NULL DEFAULT 1"),
-                ]:
-                    if col_name not in existing:
-                        await conn.execute(text(col_sql))
-                        results.append(f"added: {col_name}")
-                    else:
-                        results.append(f"skipped: {col_name} (exists)")
-
-            return {"status": "ok", "results": results}
-        except Exception as exc:
-            return {"status": "error", "error": str(exc), "traceback": traceback.format_exc()}
 
     return app
 
