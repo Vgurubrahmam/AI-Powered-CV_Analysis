@@ -1,0 +1,67 @@
+# ============================================================
+#  ATS Platform — Test Environment Docker Compose
+#  Lightweight: in-memory Redis, isolated Postgres test DB, no MinIO/ClamAV
+# ============================================================
+
+services:
+
+  postgres-test:
+    image: pgvector/pgvector:pg16
+    container_name: ats_postgres_test
+    environment:
+      POSTGRES_USER: ats_test
+      POSTGRES_PASSWORD: ats_test
+      POSTGRES_DB: ats_test_db
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data   # in-memory, wiped per run
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ats_test -d ats_test_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis-test:
+    image: redis:7-alpine
+    container_name: ats_redis_test
+    command: redis-server --save ""   # no persistence
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  test-runner:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: builder
+    container_name: ats_test_runner
+    environment:
+      DATABASE_URL: "postgresql+asyncpg://ats_test:ats_test@postgres-test:5432/ats_test_db"
+      REDIS_URL: "redis://redis-test:6379/0"
+      CELERY_BROKER_URL: "redis://redis-test:6379/1"
+      CELERY_RESULT_BACKEND: "redis://redis-test:6379/2"
+      APP_ENV: "test"
+      S3_ENDPOINT_URL: ""        # mocked in tests
+      CLAMAV_HOST: ""            # disabled in tests
+      OPENROUTER_API_KEY: ""
+      OPENAI_API_KEY: ""
+      ANTHROPIC_API_KEY: ""
+      EMBEDDING_PROVIDER: "local"
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    command: >
+      sh -c "
+        python -m alembic upgrade head &&
+        python -m pytest tests/ -v --tb=short --asyncio-mode=auto
+      "
+    volumes:
+      - ../:/workspace
+    working_dir: /workspace
