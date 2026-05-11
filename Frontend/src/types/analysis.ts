@@ -82,7 +82,7 @@ export interface FeedbackItemRead {
 
 export interface RewriteRequest {
   feedback_item_id: string
-  section: string
+  section?: string
 }
 
 export interface RewriteResult {

@@ -152,7 +152,6 @@ export default function AnalysisPage() {
 }
 
 function AnalysisRow({ analysis, onOpen }: { analysis: AnalysisRead; onOpen: () => void }) {
-  const isDone = analysis.status === 'DONE'
   const isFailed = analysis.status === 'FAILED'
 
   return (

@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, FileText, Briefcase, BarChart3, User, BrainCircuit,
 } from 'lucide-react'

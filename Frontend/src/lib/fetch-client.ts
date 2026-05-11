@@ -44,7 +44,7 @@ async function doRefresh(): Promise<void> {
 
   const json: APIResponse<{ access_token: string; refresh_token: string; token_type: string }> =
     await res.json()
-  tokenStorage.set(json.data.access_token, json.data.refresh_token)
+  tokenStorage.set(json.data!.access_token, json.data!.refresh_token)
 }
 
 async function refreshOnce(): Promise<void> {
@@ -106,7 +106,7 @@ async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T>
   }
 
   const json: APIResponse<T> = await res.json()
-  return json.data
+  return json.data as T
 }
 
 // ─── Exported helpers ────────────────────────────────────────────────────────
