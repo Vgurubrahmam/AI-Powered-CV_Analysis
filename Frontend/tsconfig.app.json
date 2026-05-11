@@ -21,8 +21,8 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
 
-    /* Paths — suppress baseUrl deprecation for TS 5 */
-    "ignoreDeprecations": "5.0",
+    /* Paths — suppress baseUrl deprecation for TS 6 */
+    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
