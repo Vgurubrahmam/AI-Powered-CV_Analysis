@@ -4,6 +4,9 @@ import { ApiError } from '@/lib/query-client'
 const TOKEN_KEY = 'cv_access_token'
 const REFRESH_KEY = 'cv_refresh_token'
 
+// Base URL for API calls — empty in dev (Vite proxy handles /api), full URL in production
+const API_BASE = import.meta.env.VITE_API_URL ?? ''
+
 // ─── Token helpers ───────────────────────────────────────────────────────────
 
 export const tokenStorage = {
@@ -27,7 +30,7 @@ async function doRefresh(): Promise<void> {
   const refresh_token = tokenStorage.getRefresh()
   if (!refresh_token) throw new Error('No refresh token')
 
-  const res = await fetch('/api/v1/auth/refresh', {
+  const res = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refresh_token }),
@@ -73,7 +76,8 @@ async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T>
     if (token) headers.set('Authorization', `Bearer ${token}`)
   }
 
-  const res = await fetch(path, { ...init, headers })
+  const url = path.startsWith('http') ? path : `${API_BASE}${path}`
+  const res = await fetch(url, { ...init, headers })
 
   // Auto-refresh on 401
   if (res.status === 401 && !isRetry && !skipAuth) {
