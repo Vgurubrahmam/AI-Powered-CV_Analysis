@@ -15,9 +15,9 @@ async function doRefresh(): Promise<void> {
   })
 
   if (!res.ok) {
-    // Refresh failed — session expired
-    window.location.href = '/login'
-    throw new Error('Refresh failed')
+    // Refresh failed — session expired. Don't redirect here;
+    // let the caller handle it (auth context will show login page).
+    throw new Error('Session expired')
   }
   // New cookies are set automatically by the response Set-Cookie headers
 }
@@ -55,10 +55,14 @@ async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T>
     credentials: 'include',  // always send cookies cross-origin
   })
 
-  // Auto-refresh on 401
+  // Auto-refresh on 401 (only if auth is expected and not already retried)
   if (res.status === 401 && !isRetry && !skipAuth) {
-    await refreshOnce()
-    return apiFetch<T>(path, { ...options, isRetry: true })
+    try {
+      await refreshOnce()
+      return apiFetch<T>(path, { ...options, isRetry: true })
+    } catch {
+      // Refresh failed — throw the original 401 so callers can handle it
+    }
   }
 
   if (!res.ok) {
