@@ -1,7 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { authApi } from '@/api/auth'
 import { usersApi } from '@/api/users'
-import { tokenStorage } from '@/lib/fetch-client'
 import { queryClient } from '@/lib/query-client'
 import type { UserRead } from '@/types/user'
 
@@ -20,32 +19,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserRead | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // On mount: if we have a token, fetch current user
+  // On mount: try fetching current user (cookie is sent automatically)
+  // If the cookie is valid, we get the user profile. If not, we're logged out.
   useEffect(() => {
-    const token = tokenStorage.getAccess()
-    if (!token) {
-      setIsLoading(false)
-      return
-    }
     usersApi
       .getMe()
       .then(setUser)
-      .catch(() => tokenStorage.clear())
+      .catch(() => {
+        // No valid cookie — user is not logged in
+        setUser(null)
+      })
       .finally(() => setIsLoading(false))
   }, [])
 
   const login = useCallback(async (email: string, password: string) => {
-    const pair = await authApi.login({ email, password })
-    tokenStorage.set(pair.access_token, pair.refresh_token)
+    // Backend sets HttpOnly cookies via Set-Cookie headers
+    await authApi.login({ email, password })
+    // Now fetch the user profile (cookie is already set)
     const me = await usersApi.getMe()
     setUser(me)
   }, [])
 
   const signup = useCallback(async (email: string, password: string) => {
-    // Register the account, then immediately log in
+    // Register the account, then log in (which sets cookies)
     await authApi.signup({ email, password })
-    const pair = await authApi.login({ email, password })
-    tokenStorage.set(pair.access_token, pair.refresh_token)
+    await authApi.login({ email, password })
     const me = await usersApi.getMe()
     setUser(me)
   }, [])
@@ -56,7 +54,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // best-effort
     } finally {
-      tokenStorage.clear()
       queryClient.clear()
       setUser(null)
     }

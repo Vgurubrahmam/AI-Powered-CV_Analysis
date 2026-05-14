@@ -129,6 +129,13 @@ class Settings(BaseSettings):
     def allowed_origins_list(self) -> list[str]:
         return [o.strip() for o in self.ALLOWED_ORIGINS.split(",")]
 
+    # ── Cookie Security (HttpOnly auth tokens) ───────────────────────────
+    COOKIE_DOMAIN: str = ""                   # empty = browser uses current domain
+    COOKIE_SECURE: bool = True                # True = HTTPS only (set False for localhost)
+    COOKIE_SAMESITE: str = "none"             # "none" for cross-origin (Vercel↔Render)
+    COOKIE_HTTPONLY: bool = True               # JS cannot read tokens
+    COOKIE_PATH: str = "/"
+
     # ── Cache TTLs ────────────────────────────────────────────────────────
     ANALYSIS_CACHE_TTL_SECONDS: int = 86400      # 24 h
     RESUME_PARSE_CACHE_TTL_SECONDS: int = 604800  # 7 d

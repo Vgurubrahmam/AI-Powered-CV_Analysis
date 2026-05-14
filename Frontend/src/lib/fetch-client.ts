@@ -1,50 +1,25 @@
 import type { APIResponse } from '@/types/common'
 import { ApiError } from '@/lib/query-client'
 
-const TOKEN_KEY = 'cv_access_token'
-const REFRESH_KEY = 'cv_refresh_token'
-
 // Base URL for API calls — empty in dev (Vite proxy handles /api), full URL in production
 const API_BASE = import.meta.env.VITE_API_URL ?? ''
-
-// ─── Token helpers ───────────────────────────────────────────────────────────
-
-export const tokenStorage = {
-  getAccess: () => localStorage.getItem(TOKEN_KEY),
-  getRefresh: () => localStorage.getItem(REFRESH_KEY),
-  set: (access: string, refresh: string) => {
-    localStorage.setItem(TOKEN_KEY, access)
-    localStorage.setItem(REFRESH_KEY, refresh)
-  },
-  clear: () => {
-    localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(REFRESH_KEY)
-  },
-}
 
 // ─── Refresh lock (prevent parallel refresh storms) ──────────────────────────
 
 let refreshPromise: Promise<void> | null = null
 
 async function doRefresh(): Promise<void> {
-  const refresh_token = tokenStorage.getRefresh()
-  if (!refresh_token) throw new Error('No refresh token')
-
   const res = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refresh_token }),
+    credentials: 'include',  // send refresh_token cookie
   })
 
   if (!res.ok) {
-    tokenStorage.clear()
+    // Refresh failed — session expired
     window.location.href = '/login'
     throw new Error('Refresh failed')
   }
-
-  const json: APIResponse<{ access_token: string; refresh_token: string; token_type: string }> =
-    await res.json()
-  tokenStorage.set(json.data!.access_token, json.data!.refresh_token)
+  // New cookies are set automatically by the response Set-Cookie headers
 }
 
 async function refreshOnce(): Promise<void> {
@@ -71,13 +46,14 @@ async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T>
     headers.set('Content-Type', 'application/json')
   }
 
-  if (!skipAuth) {
-    const token = tokenStorage.getAccess()
-    if (token) headers.set('Authorization', `Bearer ${token}`)
-  }
-
+  // Cookies are sent automatically via credentials: 'include'
+  // No need to manually attach Authorization headers
   const url = path.startsWith('http') ? path : `${API_BASE}${path}`
-  const res = await fetch(url, { ...init, headers })
+  const res = await fetch(url, {
+    ...init,
+    headers,
+    credentials: 'include',  // always send cookies cross-origin
+  })
 
   // Auto-refresh on 401
   if (res.status === 401 && !isRetry && !skipAuth) {

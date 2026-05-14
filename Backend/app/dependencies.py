@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Annotated, AsyncGenerator
 
 import redis.asyncio as aioredis
 import structlog
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
@@ -107,14 +107,30 @@ _bearer_scheme = HTTPBearer(auto_error=False)
 
 
 async def get_current_user_payload(
+    request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer_scheme)],
     redis: RedisClient,
 ) -> dict:
-    """Validate JWT and return its payload. Raises AuthException on failure."""
-    if credentials is None:
-        raise AuthException("Authorization header missing or malformed.")
+    """Validate JWT and return its payload.
 
-    token = credentials.credentials
+    Token resolution order:
+      1. HttpOnly cookie ``access_token`` (browser auth — most secure)
+      2. ``Authorization: Bearer <token>`` header (API clients, Swagger UI)
+
+    Raises AuthException if neither source provides a valid token.
+    """
+    token: str | None = None
+
+    # 1) Cookie (set by login endpoint)
+    token = request.cookies.get("access_token")
+
+    # 2) Authorization header fallback
+    if not token and credentials is not None:
+        token = credentials.credentials
+
+    if not token:
+        raise AuthException("Authentication required. Please log in.")
+
     payload = decode_access_token(token)
 
     # Check token blacklist (logout invalidation)
