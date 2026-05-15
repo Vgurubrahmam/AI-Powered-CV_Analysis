@@ -126,8 +126,12 @@ async def logout(
     request: Request,
 ) -> JSONResponse:
     """Blacklist the current JWT and clear auth cookies."""
-    svc = AuthService(db=None, redis=redis)  # type: ignore[arg-type]
-    await svc.logout(user_payload)
+    # Best-effort blacklist (skip if Redis is unavailable)
+    try:
+        svc = AuthService(db=None, redis=redis)  # type: ignore[arg-type]
+        await svc.logout(user_payload)
+    except Exception:
+        pass  # Cookies are still cleared below
 
     body = APIResponse.success(
         data={"message": "Logged out successfully."},
