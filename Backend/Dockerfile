@@ -50,7 +50,6 @@ USER appuser
 
 EXPOSE 8000
 
-# Default: run API server
-# Override CMD to run Celery worker:
-#   CMD ["celery", "-A", "app.workers.celery_app", "worker", "--loglevel=info", "-Q", "parsing,embeddings,llm,default"]
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4", "--log-level", "info"]
+# Render provides $PORT dynamically; fallback to 8000 for local Docker.
+# Shell form required for $PORT expansion.
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 4 --log-level info

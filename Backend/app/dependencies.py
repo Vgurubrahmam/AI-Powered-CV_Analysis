@@ -133,10 +133,17 @@ async def get_current_user_payload(
 
     payload = decode_access_token(token)
 
-    # Check token blacklist (logout invalidation)
+    # Check token blacklist (logout invalidation) — skip if Redis is down
     jti = payload.get("jti")
-    if jti and await is_token_blacklisted(redis, jti):
-        raise AuthException("Token has been revoked. Please log in again.")
+    if jti:
+        try:
+            if await is_token_blacklisted(redis, jti):
+                raise AuthException("Token has been revoked. Please log in again.")
+        except AuthException:
+            raise
+        except Exception:
+            # Redis unavailable — skip blacklist check (JWT signature still valid)
+            pass
 
     return payload
 
