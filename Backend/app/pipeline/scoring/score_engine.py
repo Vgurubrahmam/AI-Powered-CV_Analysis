@@ -66,7 +66,8 @@ def compute_composite_score(
     # Filter to only components with actual scores
     for component, score in score_map.items():
         if score is not None:
-            breakdown[component] = round(score, 2)
+            # Cast to float — DB Numeric columns return Decimal which can't multiply with float
+            breakdown[component] = round(float(score), 2)
             effective_weights[component] = weights.get(component, 0.0)
         else:
             missing.append(component)
@@ -93,7 +94,7 @@ def compute_composite_score(
 
     # Confidence = min(parse_confidence, data coverage)
     coverage = len(breakdown) / max(len(score_map), 1)
-    confidence = round(parse_confidence * coverage, 3)
+    confidence = round(float(parse_confidence) * coverage, 3)
 
     ci = compute_confidence_interval(composite, confidence)
 
