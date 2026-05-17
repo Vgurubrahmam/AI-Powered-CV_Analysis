@@ -21,10 +21,20 @@ CRITICAL RULES:
 - Be SPECIFIC. Reference the exact gap, not generic advice.
 - Each feedback item must explain WHY it matters for THIS specific role.
 - Do NOT give generic advice that applies to any resume.
+- Do NOT flag something as missing if it appears in the candidate's skills/education/experience below.
 - Limit to the {max_items} most impactful gaps.
 
 Resume Score: {composite_score}/100
 Role: {role_title}
+
+=== WHAT THE CANDIDATE HAS ===
+Candidate Summary: {candidate_summary}
+Candidate Skills: {candidate_skills}
+Candidate Education: {candidate_education}
+Candidate Experience: {candidate_experience}
+Matched Required Skills: {matched_required}
+
+=== GAPS FOUND ===
 Missing Required Skills: {missing_required}
 Weak Bullet Points (low quantification): {weak_bullets}
 ATS Issues: {ats_warnings}
@@ -127,16 +137,28 @@ async def generate_feedback(
 def _build_feedback_prompt(data: dict, max_items: int) -> str:
     keyword_data = data.get("keyword_result", {})
     missing_required = keyword_data.get("missing_required", [])[:10]
+    matched_required = keyword_data.get("matched_required", [])[:15]
     weak_bullets = data.get("weak_bullets", [])[:5]
     ats_warnings = data.get("ats_warnings", [])[:3]
     experience_gap = data.get("experience_gap", "None identified")
     composite = data.get("composite_score", 0)
     role_title = data.get("role_title", "the specified role")
 
+    # Candidate context
+    skills = data.get("candidate_skills", [])[:20]
+    education = data.get("candidate_education", [])[:3]
+    experience = data.get("candidate_experience", [])[:3]
+    summary = data.get("candidate_summary", "")[:400]
+
     return _FEEDBACK_PROMPT.format(
         max_items=max_items,
         composite_score=composite,
         role_title=role_title,
+        candidate_summary=summary or "Not provided",
+        candidate_skills=", ".join(str(s) for s in skills) if skills else "None listed",
+        candidate_education="; ".join(str(e) for e in education) if education else "None listed",
+        candidate_experience="\n".join(f"- {e}" for e in experience) if experience else "None listed",
+        matched_required=", ".join(matched_required) if matched_required else "None",
         missing_required=", ".join(missing_required) if missing_required else "None",
         weak_bullets="\n".join(f"- {b}" for b in weak_bullets) if weak_bullets else "None",
         ats_warnings="\n".join(f"- {w}" for w in ats_warnings) if ats_warnings else "None",

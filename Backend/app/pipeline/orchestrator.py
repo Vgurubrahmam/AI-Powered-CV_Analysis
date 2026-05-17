@@ -452,6 +452,13 @@ async def _run_feedback_generation(result: PipelineResult, jd) -> list:
                 f"Candidate has {exp.total_yoe:.1f} YOE vs {exp.required_yoe or 'N/A'} required"
                 if exp else "N/A"
             ),
+            # Resume context — so the LLM knows what the candidate HAS
+            "candidate_skills": result.parsed_resume.skills[:30] if result.parsed_resume else [],
+            "candidate_education": result.parsed_resume.education[:5] if result.parsed_resume else [],
+            "candidate_experience": [
+                j.get("raw", "")[:200] for j in (result.parsed_resume.experience or [])[:3]
+            ] if result.parsed_resume else [],
+            "candidate_summary": (result.parsed_resume.summary or "")[:500] if result.parsed_resume else "",
         }
 
         items = await generate_feedback(analysis_data, max_items=10)
