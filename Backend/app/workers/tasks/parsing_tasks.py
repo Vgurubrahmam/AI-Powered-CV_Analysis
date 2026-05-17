@@ -67,6 +67,8 @@ def parse_resume_async(self, resume_id: str) -> dict:
                 "parse_status": parsed.parse_status,
                 "parse_confidence": parsed.parse_confidence,
                 "parsed_data": parsed_data,
+                "raw_text": parsed.raw_text,
+                "ocr_used": parsed.ocr_used,
             })
 
             log.info(

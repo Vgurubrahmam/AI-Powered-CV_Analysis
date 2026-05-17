@@ -29,10 +29,18 @@ def _get_nlp():
 
 
 def clean_text(text: str) -> str:
-    """Normalize whitespace, strip non-printable characters, normalize unicode."""
+    """Normalize whitespace, strip non-printable characters, normalize unicode.
+
+    Preserves newlines so section classifiers can detect headers on separate lines.
+    """
     text = unicodedata.normalize("NFKD", text)
     text = _NON_PRINTABLE_RE.sub(" ", text)
-    text = _WHITESPACE_RE.sub(" ", text)
+    # Normalize inline spaces (tabs, multiple spaces) but preserve newlines
+    text = re.sub(r"[^\S\n]+", " ", text)
+    # Collapse 3+ consecutive blank lines into 2
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    # Strip trailing spaces on each line
+    text = "\n".join(line.rstrip() for line in text.split("\n"))
     return text.strip()
 
 

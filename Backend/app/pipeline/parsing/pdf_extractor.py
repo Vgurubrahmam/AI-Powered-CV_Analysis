@@ -61,7 +61,17 @@ def _extract_with_pdfplumber(file_bytes: bytes) -> PDFExtractResult:
         with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
             for i, page in enumerate(pdf.pages):
                 try:
-                    text = page.extract_text(x_tolerance=3, y_tolerance=3) or ""
+                    # layout=True preserves visual spacing; wider tolerances
+                    # prevent words from being glued together
+                    text = page.extract_text(
+                        layout=True,
+                        x_tolerance=5,
+                        y_tolerance=5,
+                    ) or ""
+                    # layout mode adds lots of internal spaces; normalize them
+                    # but keep line breaks intact
+                    import re
+                    text = re.sub(r"[ \t]{2,}", "  ", text)  # collapse huge gaps
                     pages.append(PageResult(page_num=i + 1, text=text, success=True))
                     if text.strip():
                         all_text_parts.append(text)
