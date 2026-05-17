@@ -7,21 +7,10 @@ import uuid
 
 import structlog
 from celery import shared_task
-from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.workers.utils import run_in_worker_loop as _run_in_worker_loop
 
 log = structlog.get_logger(__name__)
-_worker_loop: asyncio.AbstractEventLoop | None = None
-
-
-def _run_in_worker_loop(coro):
-    """Run async code on a single persistent loop per worker process."""
-    global _worker_loop
-
-    if _worker_loop is None or _worker_loop.is_closed():
-        _worker_loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(_worker_loop)
-
-    return _worker_loop.run_until_complete(coro)
 
 
 @shared_task(
@@ -67,11 +56,14 @@ def run_full_analysis(self, analysis_id: str) -> dict:
                 log.error("pipeline_failed", analysis_id=analysis_id, error=str(exc))
                 raise
             finally:
-                # Always release the distributed lock
-                analysis_obj = await _get_analysis(db, analysis_id)
-                if analysis_obj:
-                    lock_key = f"lock:analysis:{analysis_obj.resume_id}:{analysis_obj.job_id}"
-                    await redis.delete(lock_key)
+                # Best-effort: release the distributed lock (skip if Redis is down)
+                try:
+                    analysis_obj = await _get_analysis(db, analysis_id)
+                    if analysis_obj:
+                        lock_key = f"lock:analysis:{analysis_obj.resume_id}:{analysis_obj.job_id}"
+                        await redis.delete(lock_key)
+                except Exception:
+                    pass  # Redis unavailable — lock will expire via TTL
 
     try:
         return _run_in_worker_loop(_run())
