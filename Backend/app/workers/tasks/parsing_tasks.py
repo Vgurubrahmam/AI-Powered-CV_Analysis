@@ -145,7 +145,10 @@ def parse_jd_async(self, job_id: str) -> dict:
                 return {"status": "SKIPPED", "reason": "empty_text"}
 
             parsed = await parse_job_description(raw_text)
-            await repo.update(jd, {"parsed_data": parsed})
+            await repo.update(jd, {
+                "parsed_data": parsed,
+                "parse_status": "SUCCESS",
+            })
 
             log.info("jd_parsed_async", job_id=job_id, skills=len(parsed.get("required_skills", [])))
             return {"status": "SUCCESS", "required_skills": len(parsed.get("required_skills", []))}

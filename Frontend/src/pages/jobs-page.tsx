@@ -39,6 +39,11 @@ export default function JobsPage() {
     queryKey: ['jobs', 'list', page],
     queryFn: () => jobsApi.list(PAGE_SIZE, page * PAGE_SIZE),
     staleTime: 60_000,
+    refetchInterval: (query) => {
+      const items = query.state.data?.items ?? []
+      const hasPending = items.some((j) => j.parse_status === 'PENDING')
+      return hasPending ? 3000 : false
+    },
   })
 
   const { data: parsedJob } = useQuery({
@@ -181,7 +186,7 @@ function JobDetailPanel({ job, parsed }: { job: JDRead; parsed: ParsedJDRead | n
     <div className="space-y-6 mt-2">
       <div>
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Description</p>
-        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-6">{parsed?.raw_text ?? '(not available)'}</p>
+        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-6">{job.raw_text ?? '(not available)'}</p>
       </div>
       <Separator />
       {parsed?.parsed_data ? (

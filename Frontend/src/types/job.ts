@@ -11,6 +11,7 @@ export interface JDRead {
   user_id: string | null
   title: string | null
   company: string | null
+  raw_text: string | null
   parse_status: JDParseStatus
   created_at: string
 }
