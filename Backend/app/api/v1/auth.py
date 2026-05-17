@@ -99,33 +99,11 @@ async def refresh_token(
         except Exception:
             pass
     if not refresh_tok:
-        # No refresh token at all — clear any stale cookies and return 401
-        resp = JSONResponse(
-            content=APIResponse.failure(
-                code="AUTH_ERROR",
-                message="Refresh token missing. Please log in again.",
-                request_id=request.headers.get("X-Request-ID", ""),
-            ).model_dump(),
-            status_code=401,
-        )
-        clear_auth_cookies(resp)
-        return resp
+        from app.core.exceptions import AuthException
+        raise AuthException("Refresh token missing. Please log in again.")
 
-    try:
-        svc = AuthService(db=db)
-        token_pair = await svc.refresh(refresh_tok)
-    except Exception:
-        # Invalid/expired refresh token — clear stale cookies so browser stops sending them
-        resp = JSONResponse(
-            content=APIResponse.failure(
-                code="AUTH_ERROR",
-                message="Session expired. Please log in again.",
-                request_id=request.headers.get("X-Request-ID", ""),
-            ).model_dump(),
-            status_code=401,
-        )
-        clear_auth_cookies(resp)
-        return resp
+    svc = AuthService(db=db)
+    token_pair = await svc.refresh(refresh_tok)
 
     resp_body = APIResponse.success(
         data={"message": "Token refreshed."},

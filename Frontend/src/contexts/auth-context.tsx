@@ -1,7 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { authApi } from '@/api/auth'
 import { usersApi } from '@/api/users'
-import { api } from '@/lib/fetch-client'
 import { queryClient } from '@/lib/query-client'
 import type { UserRead } from '@/types/user'
 
@@ -21,9 +20,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   // On mount: try fetching current user (cookie is sent automatically)
-  // Use skipAuth to prevent refresh cascade — if cookie is invalid, just go to login.
+  // If the cookie is valid, we get the user profile. If not, we're logged out.
   useEffect(() => {
-    api.get<UserRead>('/api/v1/users/me', { skipAuth: true })
+    usersApi
+      .getMe()
       .then(setUser)
       .catch(() => {
         // No valid cookie — user is not logged in

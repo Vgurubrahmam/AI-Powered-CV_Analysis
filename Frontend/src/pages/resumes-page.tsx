@@ -28,10 +28,15 @@ export default function ResumesPage() {
   const [viewResume, setViewResume] = useState<ResumeRead | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
 
-  // Fetch resumes from API (no more localStorage!)
+  // Fetch resumes from API — auto-poll every 3s if any resume is still PENDING
   const { data: resumesData, isLoading: resumesLoading } = useQuery({
     queryKey: ['resumes', 'list'],
     queryFn: () => resumesApi.list(100, 0),
+    refetchInterval: (query) => {
+      const items = query.state.data?.items ?? []
+      const hasPending = items.some((r) => r.parse_status === 'PENDING')
+      return hasPending ? 3000 : false  // poll every 3s while parsing, stop when done
+    },
   })
 
   const resumes = resumesData?.items ?? []
